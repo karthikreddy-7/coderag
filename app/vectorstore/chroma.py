@@ -1,5 +1,5 @@
 # app/vectorstore/chroma.py
-from langchain.vectorstores import Chroma
+from langchain_community.vectorstores import Chroma
 from typing import List, Optional, Dict
 from .base import BaseVectorStore
 from ..db.schemas import ChunkMetadata, ChunkDocument

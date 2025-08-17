@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy.orm import Session
 from . import models
 
@@ -34,3 +34,7 @@ def update_file_hash(db: Session, repo_url: str, file_path: str, new_hash: str):
     else:
         file = models.File(repo_id=repo.id, path=file_path, hash=new_hash)
         db.add(file)
+
+def list_repos(db: Session) -> List[models.Repo]:
+    """Return all repositories from the database."""
+    return db.query(models.Repo).all()

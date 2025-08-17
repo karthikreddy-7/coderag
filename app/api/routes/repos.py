@@ -41,7 +41,7 @@ def add_or_reindex_repo(request: RepoCreateRequest, db: Session = Depends(sessio
 
 
 @router.get("/")
-def list_repos():
+def list_repos(db: Session = Depends(session.get_db)):
     """List all repos stored in DB."""
-    repos = crud.list_repos(session)
+    repos = crud.list_repos(db)
     return {"repos": repos}

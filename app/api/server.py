@@ -5,7 +5,8 @@ FastAPI Server:
 - Routes defined in `api/routes`
 """
 from fastapi import FastAPI
-from .routes import repos, chunks, queries
+from app.api.routes import repos, chunks, queries
+
 
 app = FastAPI(
     title="CodeRAG API",

@@ -14,3 +14,6 @@ EMBEDDING_MODEL_PATH = os.path.join(BASE_DIR, "models", "all-MiniLM-L6-v2")
 
 DATABASE_URL = "sqlite:///./coderag.db"
 VECTOR_BACKEND = "chroma"
+
+GITLAB_API_BASE = "https://gitlab.com/api/v4"
+

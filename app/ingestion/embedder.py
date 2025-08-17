@@ -28,6 +28,12 @@ class Embedder:
         logger.debug("Encoding %d texts", len(texts))
         return self.model.encode(texts, convert_to_numpy=True)
 
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return self.get_embeddings(texts).tolist()
+
+    def embed_query(self, text: str) -> list[float]:
+        return self.get_embedding(text).tolist()
+
 
 """
 if __name__ == "__main__":

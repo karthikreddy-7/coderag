@@ -21,7 +21,7 @@ class ChunkMetadata(BaseModel):
     end_line: int
     language: Optional[str] = None
     author: Optional[str] = None
-    last_modified: Optional[datetime] = None
+    last_modified: Optional[str] = None
 
 class ChunkDocument(BaseModel):
     """

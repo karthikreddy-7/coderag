@@ -96,14 +96,14 @@ class JavaParser(BaseParser):
                     end_line=end_line,
                     language="java",
                     author=author,
-                    last_modified=last_modified or datetime.now(timezone.utc),
+                    last_modified=datetime.now(timezone.utc).isoformat(),
                     class_context=class_context
                 )
             )
             chunks.append(chunk)
 
         for child in node.children:
-            chunks.extend(self._traverse_and_chunk(child, imports_block, repo_id, file_id, author, last_modified))
+            chunks.extend(self._traverse_and_chunk(child, imports_block, str(repo_id), file_id, author, last_modified))
 
         return chunks
 

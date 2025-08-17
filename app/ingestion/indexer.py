@@ -87,12 +87,12 @@ class Indexer:
                         metadata=ChunkMetadata(
                             chunk_id=chunk_id,
                             file_id=file_path,
-                            repo_id=repo_id,
+                            repo_id=str(repo_id),
                             start_line=1,
                             end_line=content.count("\n") + 1,
                             language=file_ext,
                             author=None,
-                            last_modified=datetime.now(timezone.utc),
+                            last_modified=datetime.now(timezone.utc).isoformat(),
                             class_context=None
                         )
                     )
@@ -121,3 +121,23 @@ class Indexer:
         if not chunks:
             return
         self.vectorstore.add_documents(chunks)
+
+"""
+if __name__ == "__main__":
+    import sys
+    from app.vectorstore.chroma import ChromaVectorStore
+
+    # Provide the path to your local project here
+    project_path = "/home/karthik/dev/CraftMyCV/backend"  # <- change this to your local repo
+
+    # Initialize vector store (you can configure path/persist if needed)
+    vectorstore = ChromaVectorStore(persist_directory="./vectorstore_test")
+
+    # Initialize the indexer
+    indexer = Indexer(vectorstore=vectorstore)
+
+    # Perform full indexing
+    print(f"Indexing project at: {project_path}")
+    indexer.index_project(project_path)
+    print("Indexing completed!")
+"""

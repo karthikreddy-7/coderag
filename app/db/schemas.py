@@ -22,20 +22,6 @@ class ChunkMetadata(BaseModel):
     author: Optional[str] = None
     last_modified: Optional[datetime] = None
 
-    @field_validator("file_path")
-    @classmethod
-    def normalize_path(cls, v: str) -> str:
-        """Ensure file paths are stored in a normalized form (POSIX style)."""
-        return str(Path(v).as_posix())
-
-    @field_validator("end_line")
-    @classmethod
-    def check_line_numbers(cls, v: int, values) -> int:
-        """Ensure end_line is not before start_line."""
-        if "start_line" in values and v < values["start_line"]:
-            raise ValueError("end_line cannot be smaller than start_line")
-        return v
-
 class ChunkDocument(BaseModel):
     """
     Document schema that wraps content with its metadata.
@@ -58,8 +44,6 @@ class RepoRead(RepoBase):
     id: int
     created_at: datetime
 
-    class Config:
-        orm_mode = True
 
 
 # ---------------- FileChunk ----------------
@@ -80,8 +64,6 @@ class FileChunkRead(FileChunkBase):
     id: int
     created_at: datetime
 
-    class Config:
-        orm_mode = True
 
 
 # ---------------- EmbeddingIndex ----------------
@@ -96,7 +78,4 @@ class EmbeddingCreate(EmbeddingBase):
 
 class EmbeddingRead(EmbeddingBase):
     id: int
-
-    class Config:
-        orm_mode = True
 

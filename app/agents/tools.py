@@ -1,47 +1,46 @@
 # app/agents/tools.py
-"""
-Agent Tools:
-- Provides helper methods like:
-    - get_more_context(query)
-    - get_specific_file(path)
-- Tools are invoked by CodeRAGAgent
-"""
 
-from sqlalchemy.orm import Session
+from langchain_core.tools import tool
 from app.vectorstore.chroma import ChromaVectorStore
 from app.db import crud
 from app.ingestion.data_providers import LocalDataProvider, GitLabDataProvider
 
-
 class AgentTools:
-    def __init__(self, db: Session, vectorstore: ChromaVectorStore):
+    def __init__(self, db, vectorstore: ChromaVectorStore):
         self.db = db
         self.vectorstore = vectorstore
 
-    def get_more_context(self, query: str, repo_id: str) -> str:
-        """Retrieve relevant code chunks for a query from the vector store."""
-        repo = crud.get_repo(self.db, repo_id)
-        # Filter search by the specific repository
-        search_results = self.vectorstore.search(query, top_k=5, filters={"repo_id": repo.url})
+    def get_tools(self):
+        @tool
+        def get_more_context(query: str, repo_id: str, top_k: int = 5) -> str:
+            """
+            Retrieve relevant code context from a repository using a query.
+            Defaults to 'default_repo' if repo_id is not provided.
+            """
+            repo = crud.get_repo_by_id(self.db, repo_id)
+            search_results = self.vectorstore.search(
+                query, top_k=top_k, filters={"repo_id": repo.id}
+            )
+            if not search_results:
+                return "No relevant context found."
+            return "\n".join(
+                f"--- File: {doc.metadata.get('file_id', 'N/A')} ---\n{doc.page_content}"
+                for doc in search_results
+            )
 
-        context_str = ""
-        for doc in search_results:
-            context_str += f"--- File: {doc.metadata.get('file_id', 'N/A')} ---\n"
-            context_str += doc.page_content
-            context_str += "\n--------------------------------------------------\n"
-        return context_str
+        @tool
+        def get_specific_file(file_path: str, repo_id: str) -> str:
+            """
+            Retrieve relevant code context from a repository using a query.
+            repo_id: the internal ID of the repo in the database
+            top_k: number of results to return
+            """
+            repo = crud.get_repo_by_id(self.db, repo_id)
+            provider = GitLabDataProvider(repo.url) if repo.url.startswith("http") else LocalDataProvider(repo.url)
+            try:
+                return provider.get_file_content(file_path)
+            except Exception as e:
+                return f"Error fetching file: {e}"
 
-    def get_specific_file(self, file_path: str, repo_id: str) -> str:
-        """Fetch raw code file content by its path within a repo."""
-        repo = crud.get_repo(self.db, repo_id)
-        # Use data providers to get file content
-        if repo.url.startswith("http"):
-            provider = GitLabDataProvider(repo_url=repo.url)
-        else:
-            provider = LocalDataProvider(project_path=repo.url)
+        return [get_more_context, get_specific_file]
 
-        try:
-            content = provider.get_file_content(file_path)
-            return content
-        except Exception as e:
-            return f"Error: Could not retrieve file '{file_path}'. Reason: {e}"

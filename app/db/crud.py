@@ -6,6 +6,9 @@ from . import models
 def get_repo(db: Session, repo_url: str) -> Optional[models.Repo]:
     return db.query(models.Repo).filter(models.Repo.url == repo_url).first()
 
+def get_repo_by_id(db: Session, repo_id: str) -> Optional[models.Repo]:
+    return db.query(models.Repo).filter(models.Repo.id == repo_id).first()
+
 def create_repo(db: Session, project_path: str, branch: str) -> models.Repo:
     repo_name = project_path.rstrip("/").split("/")[-1]
     repo = models.Repo(name=repo_name, url=project_path, branch=branch or "main")
@@ -18,7 +21,7 @@ def list_repos(db: Session) -> List[models.Repo]:
     return db.query(models.Repo).all()
 
 def delete_repo(db: Session, repo_url: str):
-    repo = get_repo(db, repo_url)
+    repo = get_repo_by_url(db, repo_url)
     if repo:
         db.delete(repo)
         db.commit()

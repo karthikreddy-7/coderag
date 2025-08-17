@@ -51,7 +51,7 @@ class Indexer:
                 repo = crud.create_repo(db, project_path, branch)
                 logger.info(f"Created new repository record: {repo.url} (ID: {repo.id})")
             else:
-                repo = crud.get_repo(db, project_path)
+                repo = crud.get_repo_by_url(db, project_path)
                 if not repo:
                     logger.error(f"Cannot reindex non-existent repo: {project_path}")
                     raise ValueError(f"Cannot reindex non-existent repo: {project_path}")

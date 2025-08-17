@@ -55,8 +55,16 @@ class Indexer:
         # Create a single session for this indexing operation
         db = SessionLocal()
         try:
-            # Ensure repo exists in DB and get its ID
-            repo = crud.get_or_create_repo(db, project_path, branch)
+            if full_index:
+                # New repo, create if not exists
+                repo = crud.create_repo(db, project_path, branch)
+                print("Creating a new repository")
+            else:
+                # Reindexing: fetch existing repo
+                repo = crud.get_repo(db, project_path)
+                print("Fetched and re-indexing old repository")
+                if not repo:
+                    raise ValueError(f"Cannot reindex. Repo {project_path} does not exist.")
             repo_id = repo.id
             # Get the correct data provider
             data_provider = self._get_data_provider(project_path, branch)

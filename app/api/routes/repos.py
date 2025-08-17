@@ -33,11 +33,13 @@ def add_or_reindex_repo(request: RepoCreateRequest, db: Session = Depends(sessio
         try:
             indexer.index_project(request.project_path, request.branch)
             # Fetch the newly created repo record to return its ID
-            new_repo = crud.get_or_create_repo(db, request.project_path, request.branch)
+            new_repo = crud.create_repo(db, request.project_path, request.branch)
             return {"message": "Repository added and indexed successfully", "repo_id": new_repo.id}
         except Exception as e:
+            # Make sure you have a delete_repo function in crud
             crud.delete_repo(db, request.project_path)
             raise HTTPException(status_code=500, detail=f"Indexing failed: {str(e)}")
+
 
 
 @router.get("/")

@@ -1,0 +1,135 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CodeRAG Design System - Light theme with developer-friendly colors */
+
+@layer base {
+  :root {
+    /* Core backgrounds - Clean white */
+    --background: 0 0% 100%;          /* pure white - main app background */
+    --surface: 0 0% 100%;             /* pure white - cards, panels */
+    --surface-elevated: 0 0% 100%;    /* pure white with shadow */
+    
+    /* Text colors - Clean black hierarchy */
+    --foreground: 0 0% 9%;            /* near black - primary text */
+    --foreground-secondary: 0 0% 45%; /* medium gray - secondary text */
+    --foreground-muted: 0 0% 64%;     /* light gray - muted text */
+    
+    /* Brand colors - Minimal blue accent */
+    --primary: 217 91% 60%;           /* clean blue - primary brand */
+    --primary-foreground: 0 0% 100%;  /* white */
+    --primary-hover: 217 91% 50%;     /* darker blue */
+    
+    /* Accent colors - Subtle gray accent */
+    --accent: 0 0% 96%;               /* very light gray - accent bg */
+    --accent-foreground: 0 0% 9%;     /* near black */
+    --accent-hover: 0 0% 90%;         /* light gray hover */
+    --accent-light: 0 0% 98%;         /* ultra light gray */
+    
+    /* Status colors */
+    --success: 142 76% 36%;           /* clean green */
+    --warning: 38 92% 50%;            /* clean orange */
+    --destructive: 0 84% 60%;         /* clean red */
+    --destructive-foreground: 0 0% 100%;
+    
+    /* UI Elements - Clean borders */
+    --border: 0 0% 90%;               /* light gray borders */
+    --border-light: 0 0% 95%;         /* very light borders */
+    --input: 0 0% 100%;               /* white input backgrounds */
+    --ring: 217 91% 60%;              /* blue focus rings */
+    
+    /* Legacy shadcn compatibility */
+    --card: 0 0% 100%;                /* pure white */
+    --card-foreground: 0 0% 9%;       /* near black */
+    --popover: 0 0% 100%;             /* pure white */
+    --popover-foreground: 0 0% 9%;    /* near black */
+    --secondary: 0 0% 96%;            /* very light gray */
+    --secondary-foreground: 0 0% 9%;  /* near black */
+    --muted: 0 0% 96%;                /* very light gray */
+    --muted-foreground: 0 0% 45%;     /* medium gray */
+    
+    /* Code syntax highlighting */
+    --code-bg: 0 0% 98%;              /* ultra light gray */
+    --code-border: 0 0% 90%;          /* light gray */
+    --code-keyword: 271 91% 65%;      /* purple */
+    --code-string: 142 76% 36%;       /* green */
+    --code-comment: 0 0% 64%;         /* light gray */
+    --code-function: 217 91% 60%;     /* blue */
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    
+    /* Animations */
+    --transition-smooth: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}

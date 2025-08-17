@@ -1,49 +1,47 @@
-from typing import Optional
-
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+import logging
+
 from app.ingestion.indexer import Indexer
 from app.db import crud, session
 from app.vectorstore.chroma import ChromaVectorStore
+from app.config.logging_config import setup_logging
+
+# Setup logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/repos", tags=["Repositories"])
-
-# Initialize vector store and indexer
 vectorstore = ChromaVectorStore()
 indexer = Indexer(vectorstore)
 
-
 class RepoCreateRequest(BaseModel):
     project_path: str
-    branch: Optional[str] = None
-
+    branch: str | None = None
 
 @router.post("/")
 def add_or_reindex_repo(request: RepoCreateRequest, db: Session = Depends(session.get_db)):
-    """Add a new repository or reindex an existing one."""
     repo = crud.get_repo(db, request.project_path)
-    if repo:
-        try:
+    try:
+        if repo:
+            logger.info(f"Reindexing repository: {request.project_path}")
             indexer.reindex_project(repo.url, repo.branch)
             return {"message": "Repository reindexed successfully", "repo_id": repo.id}
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Reindexing failed: {str(e)}")
-    else:
-        try:
+        else:
+            logger.info(f"Adding and indexing new repository: {request.project_path}")
             indexer.index_project(request.project_path, request.branch)
-            # Fetch the newly created repo record to return its ID
-            new_repo = crud.create_repo(db, request.project_path, request.branch)
+            new_repo = crud.get_repo(db, request.project_path)
             return {"message": "Repository added and indexed successfully", "repo_id": new_repo.id}
-        except Exception as e:
-            # Make sure you have a delete_repo function in crud
+    except Exception as e:
+        logger.error(f"Indexing failed for {request.project_path}: {str(e)}")
+        if not repo:
             crud.delete_repo(db, request.project_path)
-            raise HTTPException(status_code=500, detail=f"Indexing failed: {str(e)}")
-
-
+            logger.info(f"Deleted partially indexed repository: {request.project_path}")
+        raise HTTPException(status_code=500, detail=f"Indexing failed: {str(e)}")
 
 @router.get("/")
 def list_repos(db: Session = Depends(session.get_db)):
-    """List all repos stored in DB."""
     repos = crud.list_repos(db)
+    logger.info(f"Listing all repositories, count: {len(repos)}")
     return {"repos": repos}

@@ -4,11 +4,16 @@ Chunk Routes:
 - Expose API for inspecting indexed chunks
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from app.vectorstore.chroma import ChromaVectorStore
+from app.db import session
 
-router = APIRouter(prefix="/chunks")
+router = APIRouter(prefix="/chunks", tags=["Chunks"])
+vectorstore = ChromaVectorStore()
 
-@router.get("/{repo_id}")
-def list_chunks(repo_id: int):
-    """List all chunks indexed for a repository."""
-    pass
+@router.get("/{repo_url}")
+def list_chunks_for_repo(repo_url: str):
+    """List all chunks indexed for a repository by its URL."""
+    results = vectorstore.vectorstore.get(where={"repo_id": repo_url})
+    return {"count": len(results.get('ids', [])), "chunks": results}

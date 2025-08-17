@@ -1,11 +1,13 @@
-# app/api/routes/repos.py
-from fastapi import APIRouter, HTTPException
+from typing import Optional
+
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 from app.ingestion.indexer import Indexer
 from app.db import crud, session
 from app.vectorstore.chroma import ChromaVectorStore
 
-router = APIRouter(prefix="/repos")
+router = APIRouter(prefix="/repos", tags=["Repositories"])
 
 # Initialize vector store and indexer
 vectorstore = ChromaVectorStore()
@@ -13,35 +15,29 @@ indexer = Indexer(vectorstore)
 
 
 class RepoCreateRequest(BaseModel):
-    repo_url: str
-    branch: str = "main"
+    project_path: str
+    branch: Optional[str] = None
 
 
 @router.post("/")
-def add_or_reindex_repo(request: RepoCreateRequest):
-    """
-    Add a new repository or reindex an existing one.
-    - If repo exists: perform incremental reindex.
-    - If repo doesn't exist: add and perform full index.
-    """
-    existing_repo = crud.get_repo_by_id(session, request.repo_url)
-
-    if existing_repo:
-        # Repo exists → perform reindex
+def add_or_reindex_repo(request: RepoCreateRequest, db: Session = Depends(session.get_db)):
+    """Add a new repository or reindex an existing one."""
+    repo = crud.get_repo(db, request.project_path)
+    if repo:
         try:
-            indexer.reindex_project(request.repo_url, request.branch)
+            indexer.reindex_project(repo.url, repo.branch)
+            return {"message": "Repository reindexed successfully", "repo_id": repo.id}
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Reindexing failed: {str(e)}")
-        return {"message": "Repository reindexed successfully", "repo_id": existing_repo.id}
-
-    # Repo doesn't exist → add and full index
-    repo_record = crud.create_repo(session, request.repo_url, request.branch)
-    try:
-        indexer.index_project(request.repo_url, request.branch)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Indexing failed: {str(e)}")
-
-    return {"message": "Repository added and indexed successfully", "repo_id": repo_record.id}
+    else:
+        try:
+            indexer.index_project(request.project_path, request.branch)
+            # Fetch the newly created repo record to return its ID
+            new_repo = crud.get_or_create_repo(db, request.project_path, request.branch)
+            return {"message": "Repository added and indexed successfully", "repo_id": new_repo.id}
+        except Exception as e:
+            crud.delete_repo(db, request.project_path)
+            raise HTTPException(status_code=500, detail=f"Indexing failed: {str(e)}")
 
 
 @router.get("/")

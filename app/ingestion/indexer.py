@@ -1,10 +1,10 @@
 import os
 from datetime import datetime, timezone
 from typing import List
-from uuid import uuid4
 
 from app.db import crud
 from app.db.schemas import ChunkDocument, ChunkMetadata
+from app.db.session import SessionLocal
 from app.ingestion.hashing import Hasher
 from app.ingestion.parser import base
 from app.ingestion.parser.java_parser import JavaParser
@@ -55,47 +55,55 @@ class Indexer:
         repo_id = project_path
         data_provider = self._get_data_provider(project_path, branch)
         files = data_provider.list_files()
+        # Create a single session for this indexing operation
+        db = SessionLocal()
+        try:
+            for file_path in files:
+                content = data_provider.get_file_content(file_path)
+                # Pass the created session to the crud function
+                prev_hash = crud.get_file_hash(db, repo_id, file_path)
 
-        for file_path in files:
-            content = data_provider.get_file_content(file_path)
-            prev_hash = crud.get_file_hash(repo_id, file_path)
+                if not full_index and prev_hash and not self.hasher.has_changed(content, prev_hash):
+                    continue
 
-            if not full_index and not self.hasher.has_changed(content, prev_hash):
-                continue
+                parser = self._get_parser(file_path)
+                chunks = []
 
-            parser = self._get_parser(file_path)
-            chunks = []
-
-            if parser:
-                # If a specific parser exists, use it to extract detailed chunks.
-                print(f"Parsing {file_path} with {parser.__class__.__name__}...")
-                ast = parser.parse_file(content=content)
-                chunks = parser.extract_chunks(ast, content, repo_id, file_path)
-            else:
-                # If no parser exists, treat the whole file as a single chunk.
-                id_string = f"{repo_id}:{file_path}"
-                chunk_id = self.hasher.compute_hash(id_string)
-                print(f"No parser for {file_path}. Treating as a single chunk.")
-                file_ext = file_path.split(".")[-1]
-                chunk = ChunkDocument(
-                    content=content,
-                    metadata=ChunkMetadata(
-                        chunk_id=chunk_id,
-                        file_id=file_path,
-                        repo_id=repo_id,
-                        start_line=1,
-                        end_line=content.count('\n') + 1,
-                        language=file_ext,
-                        author=None,
-                        last_modified=datetime.now(timezone.utc),
-                        class_context=None
+                if parser:
+                    # If a specific parser exists, use it to extract detailed chunks.
+                    print(f"Parsing {file_path} with {parser.__class__.__name__}...")
+                    ast = parser.parse_file(content=content)
+                    chunks = parser.extract_chunks(ast, content, repo_id, file_path)
+                else:
+                    # If no parser exists, treat the whole file as a single chunk.
+                    id_string = f"{repo_id}:{file_path}"
+                    chunk_id = self.hasher.compute_hash(id_string)
+                    print(f"No parser for {file_path}. Treating as a single chunk.")
+                    file_ext = file_path.split(".")[-1]
+                    chunk = ChunkDocument(
+                        content=content,
+                        metadata=ChunkMetadata(
+                            chunk_id=chunk_id,
+                            file_id=file_path,
+                            repo_id=repo_id,
+                            start_line=1,
+                            end_line=content.count('\n') + 1,
+                            language=file_ext,
+                            author=None,
+                            last_modified=datetime.now(timezone.utc),
+                            class_context=None
+                        )
                     )
-                )
-                chunks.append(chunk)
+                    chunks.append(chunk)
 
-            if chunks:
-                self._embed_and_store_chunks(chunks)
-            crud.update_file_hash(repo_id, file_path, self.hasher.compute_hash(content))
+                if chunks:
+                    self._embed_and_store_chunks(chunks)
+                # Pass the same session to the update function
+                crud.update_file_hash(db, repo_id, file_path, self.hasher.compute_hash(content))
+                db.commit()
+        finally:
+            # Ensure the session is closed, even if errors occur
+            db.close()
 
     def _get_parser(self, file_path: str) -> base.BaseParser:
         """Return parser based on file extension."""
@@ -103,5 +111,7 @@ class Indexer:
         return self.parsers.get(ext)
 
     def _embed_and_store_chunks(self, chunks: List[ChunkDocument]):
-        for chunk in chunks:
-            self.vectorstore.add_document(chunk)
+        """Embeds and stores chunks ONLY in the vector store."""
+        if not chunks:
+            return
+        self.vectorstore.add_documents(chunks)

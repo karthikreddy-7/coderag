@@ -1,19 +1,20 @@
 from datetime import datetime, timezone
 from typing import List, Optional
-from uuid import uuid4
 from app.ingestion.parser.base import BaseParser
 from app.db.schemas import ChunkDocument, ChunkMetadata
 import os
+import hashlib
 
 from tree_sitter import Language, Parser, Node
 
 
 class JavaParser(BaseParser):
     """
-    A robust Java parser that adds parent class context to method chunks.
+    A robust Java parser that uses semantic signatures for deterministic chunk IDs.
     """
     CHUNKABLE_NODE_TYPES = {
         'method_declaration',
+        'constructor_declaration',
         'interface_declaration',
         'enum_declaration',
     }
@@ -35,12 +36,27 @@ class JavaParser(BaseParser):
         current = node.parent
         while current:
             if current.type == 'class_declaration':
-                # Find the identifier node for the class name
                 name_node = current.child_by_field_name('name')
                 if name_node:
                     return name_node.text.decode('utf8')
             current = current.parent
         return None
+
+    def _get_node_signature(self, node: Node, class_name: str) -> str:
+        """Extracts a unique signature from a method or constructor node."""
+        signature_parts = [class_name]
+        if node.type == 'constructor_declaration':
+            name_node = node.child_by_field_name('name')
+            if name_node:
+                signature_parts.append(name_node.text.decode('utf8'))
+        elif node.type == 'method_declaration':
+            name_node = node.child_by_field_name('name')
+            if name_node:
+                signature_parts.append(name_node.text.decode('utf8'))
+        params_node = node.child_by_field_name('parameters')
+        if params_node:
+            signature_parts.append(params_node.text.decode('utf8'))
+        return ":".join(signature_parts)
 
     def _traverse_and_chunk(
             self,
@@ -54,6 +70,9 @@ class JavaParser(BaseParser):
         """Recursively traverses the AST, creating a flat list of context-rich chunks."""
         chunks = []
         if node.type in self.CHUNKABLE_NODE_TYPES:
+            class_context = self._find_parent_class_context(node)
+            if not class_context:
+                return []
             start_line = node.start_point[0] + 1
             end_line = node.end_point[0] + 1
             content_text = node.text.decode('utf8')
@@ -63,11 +82,14 @@ class JavaParser(BaseParser):
                 comment_text = comment_node.text.decode('utf8') + '\n'
                 start_line = comment_node.start_point[0] + 1
             full_content = f"{imports_block}\n\n{comment_text}{content_text}"
-            class_context = self._find_parent_class_context(node)
+            signature = self._get_node_signature(node, class_context)
+            id_string = f"{repo_id}:{file_id}:{signature}"
+            chunk_id = hashlib.sha256(id_string.encode('utf-8')).hexdigest()
+
             chunk = ChunkDocument(
                 content=full_content.strip(),
                 metadata=ChunkMetadata(
-                    chunk_id=str(uuid4()),
+                    chunk_id=chunk_id,  # Use the new signature-based ID
                     file_id=file_id,
                     repo_id=repo_id,
                     start_line=start_line,
@@ -75,12 +97,14 @@ class JavaParser(BaseParser):
                     language="java",
                     author=author,
                     last_modified=last_modified or datetime.now(timezone.utc),
-                    class_context=class_context  # Added context field
+                    class_context=class_context
                 )
             )
             chunks.append(chunk)
+
         for child in node.children:
             chunks.extend(self._traverse_and_chunk(child, imports_block, repo_id, file_id, author, last_modified))
+
         return chunks
 
     def extract_chunks(

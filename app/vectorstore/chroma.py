@@ -25,6 +25,9 @@ class ChromaVectorStore(BaseVectorStore):
         return document.metadata.chunk_id
 
     def add_documents(self, documents: List[ChunkDocument]) -> List[str]:
+        """Add a list of documents in a single batch."""
+        if not documents:
+            return []
         ids = [doc.metadata.chunk_id for doc in documents]
         texts = [doc.content for doc in documents]
         metadatas = [doc.metadata.model_dump() for doc in documents]

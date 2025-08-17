@@ -73,12 +73,14 @@ class Indexer:
                 chunks = parser.extract_chunks(ast, content, repo_id, file_path)
             else:
                 # If no parser exists, treat the whole file as a single chunk.
+                id_string = f"{repo_id}:{file_path}"
+                chunk_id = self.hasher.compute_hash(id_string)
                 print(f"No parser for {file_path}. Treating as a single chunk.")
                 file_ext = file_path.split(".")[-1]
                 chunk = ChunkDocument(
                     content=content,
                     metadata=ChunkMetadata(
-                        chunk_id=str(uuid4()),
+                        chunk_id=chunk_id,
                         file_id=file_path,
                         repo_id=repo_id,
                         start_line=1,
@@ -102,8 +104,5 @@ class Indexer:
 
     def _embed_and_store_chunks(self, chunks: List[ChunkDocument]):
         for chunk in chunks:
-            self.vectorstore.upsert(
-                vector_id=chunk.metadata.chunk_id,
-                metadata=chunk.metadata.model_dump()
-            )
+            self.vectorstore.add_document(chunk)
             crud.save_chunk_metadata(chunk.metadata)

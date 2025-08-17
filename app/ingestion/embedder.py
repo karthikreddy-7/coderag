@@ -2,14 +2,15 @@
 import logging
 
 from sentence_transformers import SentenceTransformer
-from app.config import config
+
+from app.config import settings
 from app.config.logging_config import setup_logging
 
 logger = logging.getLogger(__name__)
 
 class Embedder:
     def __init__(self, model_path: str | None = None):
-        path = model_path or config.EMBEDDING_MODEL_PATH
+        path = model_path or settings.EMBEDDING_MODEL_PATH
         logger.info("Loading embedding model from: %s", path)
         self.model = SentenceTransformer(path)
 

@@ -52,20 +52,23 @@ class Indexer:
 
     def _index_repo(self, project_path: str, branch: str = None, full_index: bool = False):
         """Core indexing logic for both parsable and non-parsable files."""
-        repo_id = project_path
-        data_provider = self._get_data_provider(project_path, branch)
-        files = data_provider.list_files()
         # Create a single session for this indexing operation
         db = SessionLocal()
         try:
+            # Ensure repo exists in DB and get its ID
+            repo = crud.get_or_create_repo(db, project_path, branch)
+            repo_id = repo.id
+            # Get the correct data provider
+            data_provider = self._get_data_provider(project_path, branch)
+            files = data_provider.list_files()
             for file_path in files:
                 content = data_provider.get_file_content(file_path)
-                # Pass the created session to the crud function
-                prev_hash = crud.get_file_hash(db, repo_id, file_path)
-
+                # Get previous hash if exists
+                prev_hash = crud.get_file_hash(db, repo, file_path)
+                # Skip unchanged files in incremental reindex
                 if not full_index and prev_hash and not self.hasher.has_changed(content, prev_hash):
                     continue
-
+                # Determine parser
                 parser = self._get_parser(file_path)
                 chunks = []
 
@@ -76,10 +79,9 @@ class Indexer:
                     chunks = parser.extract_chunks(ast, content, repo_id, file_path)
                 else:
                     # If no parser exists, treat the whole file as a single chunk.
-                    id_string = f"{repo_id}:{file_path}"
-                    chunk_id = self.hasher.compute_hash(id_string)
                     print(f"No parser for {file_path}. Treating as a single chunk.")
                     file_ext = file_path.split(".")[-1]
+                    chunk_id = self.hasher.compute_hash(f"{repo_id}:{file_path}")
                     chunk = ChunkDocument(
                         content=content,
                         metadata=ChunkMetadata(
@@ -87,7 +89,7 @@ class Indexer:
                             file_id=file_path,
                             repo_id=repo_id,
                             start_line=1,
-                            end_line=content.count('\n') + 1,
+                            end_line=content.count("\n") + 1,
                             language=file_ext,
                             author=None,
                             last_modified=datetime.now(timezone.utc),
@@ -96,11 +98,15 @@ class Indexer:
                     )
                     chunks.append(chunk)
 
+                # Embed and store chunks in vector store
                 if chunks:
                     self._embed_and_store_chunks(chunks)
-                # Pass the same session to the update function
+
+                # Update file hash in DB
                 crud.update_file_hash(db, repo_id, file_path, self.hasher.compute_hash(content))
-                db.commit()
+
+            db.commit()
+
         finally:
             # Ensure the session is closed, even if errors occur
             db.close()

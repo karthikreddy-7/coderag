@@ -1,24 +1,19 @@
-# app/db/session.py
-"""
-Database Session:
-- SQLAlchemy session setup for SQLite
-"""
-
-# app/db/session.py
+import os
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
+from app.config.settings import BASE_DIR
 
-DATABASE_URL = "sqlite:///./coderag.db"  # local SQLite DB
+# SQLite database in root folder
+DATABASE_URL = f"sqlite:///{os.path.join(BASE_DIR, 'coderag.db')}"
 
-engine = create_engine(
-    DATABASE_URL, connect_args={"check_same_thread": False}  # required for SQLite
-)
+# SQLAlchemy engine & session
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Declarative Base shared across models
 Base = declarative_base()
 
-
-# Dependency for FastAPI
+# FastAPI dependency
 def get_db():
     db = SessionLocal()
     try:

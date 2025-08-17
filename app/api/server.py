@@ -6,7 +6,7 @@ FastAPI Server:
 """
 from fastapi import FastAPI
 from app.api.routes import repos, chunks, queries
-
+from app.db.init_db import *
 
 app = FastAPI(
     title="CodeRAG API",

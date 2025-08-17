@@ -1,13 +1,7 @@
-# app/db/models.py
-"""
-Database Models:
-- Repo, File, Chunk
-"""
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Text
-from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy.orm import relationship
 from datetime import datetime
-
-Base = declarative_base()
+from app.db.session import Base  # shared Base
 
 class Repo(Base):
     """Repository tracked by the system."""
@@ -29,6 +23,6 @@ class File(Base):
     id = Column(Integer, primary_key=True, index=True)
     repo_id = Column(Integer, ForeignKey("repos.id", ondelete="CASCADE"))
     path = Column(String, index=True)
-    hash = Column(String, index=True)  # track changes
+    hash = Column(String, index=True)
 
     repo = relationship("Repo", back_populates="files")

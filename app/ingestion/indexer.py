@@ -95,7 +95,7 @@ class Indexer:
 
             if chunks:
                 self._embed_and_store_chunks(chunks)
-                crud.update_file_hash(repo_id, file_path, self.hasher.compute_hash(content))
+            crud.update_file_hash(repo_id, file_path, self.hasher.compute_hash(content))
 
     def _get_parser(self, file_path: str) -> base.BaseParser:
         """Return parser based on file extension."""
@@ -105,4 +105,3 @@ class Indexer:
     def _embed_and_store_chunks(self, chunks: List[ChunkDocument]):
         for chunk in chunks:
             self.vectorstore.add_document(chunk)
-            crud.save_chunk_metadata(chunk.metadata)

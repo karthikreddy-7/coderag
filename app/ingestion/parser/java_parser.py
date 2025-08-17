@@ -1,107 +1,143 @@
-from datetime import datetime
-from typing import List, Union
+from datetime import datetime, timezone
+from typing import List, Optional
 from uuid import uuid4
 from app.ingestion.parser.base import BaseParser
 from app.db.schemas import ChunkDocument, ChunkMetadata
-import javalang
-from javalang.tree import Node
+import os
 
-"""
-Java Parser Module
-Implements the `BaseParser` interface for Java source files.
-Responsible for parsing Java files into ASTs and extracting
-logical chunks such as methods and classes. Can be extended
-with additional Java parsing tools like javalang or tree-sitter.
-"""
+from tree_sitter import Language, Parser, Node
 
 
 class JavaParser(BaseParser):
-    def parse_file(self, content: str):
-        """
-        Parse Java file content and return an AST-like tree.
-        """
-        tree = javalang.parse.parse(content)
-        return tree
+    """
+    A robust Java parser that adds parent class context to method chunks.
+    """
+    CHUNKABLE_NODE_TYPES = {
+        'method_declaration',
+        'constructor_declaration',
+        'interface_declaration',
+        'enum_declaration',
+    }
 
-    def _get_node_end_line(self, node: Node) -> int:
-        """
-        Recursively find the maximum line number in a node's subtree.
-        This provides a much better, though not always perfect, approximation
-        for the end line, as javalang doesn't store end positions.
-        """
-        max_line = node.position.line if node.position else 0
+    def __init__(self):
+        """Initializes the tree-sitter parser with the Java grammar."""
+        lib_path = os.path.join(os.path.dirname(__file__), '..', '..', 'build', 'my-languages.so')
+        self.JAVA_LANGUAGE = Language(lib_path, 'java')
+        self.parser = Parser()
+        self.parser.set_language(self.JAVA_LANGUAGE)
 
-        for child in node:
-            if isinstance(child, Node):
-                max_line = max(max_line, self._get_node_end_line(child))
-            elif isinstance(child, list):
-                for item in child:
-                    if isinstance(item, Node):
-                        max_line = max(max_line, self._get_node_end_line(item))
-        return max_line
+    def parse_file(self, content: str) -> Node:
+        """Parse Java file content and return a tree-sitter AST."""
+        tree = self.parser.parse(bytes(content, "utf8"))
+        return tree.root_node
 
-    def extract_chunks(self, tree, content: str, repo_id: str, file_id: str, author=None, last_modified=None) -> List[
-        ChunkDocument]:
+    def _find_parent_class_context(self, node: Node) -> Optional[str]:
+        """Traverses up the tree from a node to find the name of its containing class."""
+        current = node.parent
+        while current:
+            if current.type == 'class_declaration':
+                # Find the identifier node for the class name
+                name_node = current.child_by_field_name('name')
+                if name_node:
+                    return name_node.text.decode('utf8')
+            current = current.parent
+        return None
+
+    def _traverse_and_chunk(
+            self,
+            node: Node,
+            imports_block: str,
+            repo_id: str,
+            file_id: str,
+            author: Optional[str],
+            last_modified: Optional[datetime]
+    ) -> List[ChunkDocument]:
+        """Recursively traverses the AST, creating a flat list of context-rich chunks."""
         chunks = []
-        lines = content.splitlines()
-        for path, node in tree:
-            # We are interested in classes and methods
-            if isinstance(node, (javalang.tree.ClassDeclaration, javalang.tree.MethodDeclaration)):
-                start_line = node.position.line if node.position else 1
-                # Use the recursive helper to find a more accurate end line
-                end_line = self._get_node_end_line(node)
-                # Ensure end_line does not exceed the total number of lines
-                if end_line > len(lines):
-                    end_line = len(lines)
-                # Find the actual end line by looking for the closing brace '}'
-                # This makes the end_line capture complete blocks
-                brace_found = False
-                for i in range(end_line - 1, len(lines)):
-                    if '}' in lines[i]:
-                        end_line = i + 1
-                        brace_found = True
-                        break
-                if not brace_found:
-                    end_line = len(lines)
-                # Avoid creating empty or out-of-bounds snippets
-                if start_line > end_line:
-                    continue
-                snippet = lines[start_line - 1:end_line]
-                chunk = ChunkDocument(
-                    content="\n".join(snippet),
-                    metadata=ChunkMetadata(
-                        chunk_id=str(uuid4()),
-                        file_id=file_id,
-                        repo_id=repo_id,
-                        start_line=start_line,
-                        end_line=end_line,
-                        language="java",
-                        author=author,
-                        last_modified=last_modified or datetime.utcnow()
-                    )
+        if node.type in self.CHUNKABLE_NODE_TYPES:
+            start_line = node.start_point[0] + 1
+            end_line = node.end_point[0] + 1
+            content_text = node.text.decode('utf8')
+            comment_text = ""
+            if node.prev_named_sibling and node.prev_named_sibling.type == 'block_comment':
+                comment_node = node.prev_named_sibling
+                comment_text = comment_node.text.decode('utf8') + '\n'
+                start_line = comment_node.start_point[0] + 1
+            full_content = f"{imports_block}\n\n{comment_text}{content_text}"
+            class_context = self._find_parent_class_context(node)
+            chunk = ChunkDocument(
+                content=full_content.strip(),
+                metadata=ChunkMetadata(
+                    chunk_id=str(uuid4()),
+                    file_id=file_id,
+                    repo_id=repo_id,
+                    start_line=start_line,
+                    end_line=end_line,
+                    language="java",
+                    author=author,
+                    last_modified=last_modified or datetime.now(timezone.utc),
+                    class_context=class_context  # Added context field
                 )
-                chunks.append(chunk)
+            )
+            chunks.append(chunk)
+        for child in node.children:
+            chunks.extend(self._traverse_and_chunk(child, imports_block, repo_id, file_id, author, last_modified))
         return chunks
+
+    def extract_chunks(
+            self,
+            root_node: Node,
+            content: str,
+            repo_id: str,
+            file_id: str,
+            author=None,
+            last_modified=None
+    ) -> List[ChunkDocument]:
+        """Extracts a flat list of context-rich chunks from a file's AST root node."""
+        import_nodes = [node for node in root_node.children if node.type == 'import_declaration']
+        imports_block = "\n".join(node.text.decode('utf8') for node in import_nodes)
+        return self._traverse_and_chunk(root_node, imports_block, repo_id, file_id, author, last_modified)
 
 
 if __name__ == "__main__":
-    sample_java = """
-    package com.example;
-    public class HelloWorld {
-        public void sayHello() {
-            System.out.println("Hello, world!");
-        }
-        public int add(int a, int b) {
-            return a + b;
-        }
+    sample_java = """package com.example.webrest;
+
+import org.springframework.web.bind.annotation.*;
+import com.example.model.Order;
+
+/**
+ * REST Controller for managing customer orders.
+ */
+@RestController
+@RequestMapping("/api/v1/orders")
+public class OrderController {
+
+    public OrderController() {
+        // Constructor
     }
-    """
+
+    /**
+     * Retrieves an order by its unique ID.
+     * @param id The ID of the order.
+     * @return A ResponseEntity containing the Order if found.
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<Order> getOrderById(@PathVariable String id) {
+        return orderService.findById(id)
+                .map(ResponseEntity::ok)
+                .orElseThrow(() -> new OrderNotFoundException(id));
+    }
+}
+"""
     parser = JavaParser()
     tree = parser.parse_file(sample_java)
-    chunks = parser.extract_chunks(tree, sample_java, repo_id="test_repo", file_id="hello.java")
+    chunks = parser.extract_chunks(tree, sample_java, repo_id="test_repo", file_id="OrderController.java")
+
     print(f"Extracted {len(chunks)} chunks:")
     for chunk in chunks:
+        print("-" * 50)
         print(f"Chunk ID: {chunk.metadata.chunk_id}")
-        print(f"Lines {chunk.metadata.start_line}-{chunk.metadata.end_line}")
+        # Assuming your ChunkMetadata schema is updated, this will work
+        print(f"Class Context: {chunk.metadata.class_context}")
+        print(f"Lines: {chunk.metadata.start_line}-{chunk.metadata.end_line}")
         print(chunk.content)
-        print("-" * 40)

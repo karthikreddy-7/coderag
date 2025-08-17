@@ -16,6 +16,7 @@ class ChunkMetadata(BaseModel):
     chunk_id: str
     file_id: str
     repo_id: str
+    class_context: Optional[str]
     start_line: int
     end_line: int
     language: Optional[str] = None

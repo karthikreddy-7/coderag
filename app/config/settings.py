@@ -16,4 +16,12 @@ DATABASE_URL = "sqlite:///./coderag.db"
 VECTOR_BACKEND = "chroma"
 
 GITLAB_API_BASE = "https://gitlab.com/api/v4"
+PRIVATE_TOKEN = ""
 
+
+# Whitelist: Only include files with these extensions
+ALLOWED_EXTENSIONS = {".java", ".xml", ".properties",".yml"}
+
+# Blacklist: Exclude any files or folders with these exact names
+IGNORED_FOLDERS = {"target", "build", "node_modules", ".git", ".idea", ".vscode","test"}
+IGNORED_FILES = {"pom.xml", "mvnw", "mvnw.cmd"}

@@ -14,7 +14,6 @@ class JavaParser(BaseParser):
     """
     CHUNKABLE_NODE_TYPES = {
         'method_declaration',
-        'constructor_declaration',
         'interface_declaration',
         'enum_declaration',
     }

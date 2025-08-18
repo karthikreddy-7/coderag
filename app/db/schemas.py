@@ -7,6 +7,9 @@ from pydantic import BaseModel, field_validator
 from typing import Optional
 from datetime import datetime
 from pathlib import Path
+from dataclasses import dataclass
+from typing import Dict, Optional, List, Any
+
 
 class ChunkMetadata(BaseModel):
     """
@@ -29,5 +32,22 @@ class ChunkDocument(BaseModel):
     """
     content: str
     metadata: ChunkMetadata
+
+# ---------- Response model ----------
+@dataclass
+class AgentResponse:
+    status: str
+    answer: str
+    tool_calls: List[Dict[str, Any]]
+
+    def to_dict(self) -> Dict:
+        return {
+            "status": self.status,
+            "answer": self.answer,
+            "meta": {
+                "tool_calls": self.tool_calls,
+            },
+        }
+
 
 

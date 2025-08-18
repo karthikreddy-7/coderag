@@ -21,7 +21,7 @@ def list_repos(db: Session) -> List[models.Repo]:
     return db.query(models.Repo).all()
 
 def delete_repo(db: Session, repo_url: str):
-    repo = get_repo_by_url(db, repo_url)
+    repo = get_repo(db, repo_url)
     if repo:
         db.delete(repo)
         db.commit()

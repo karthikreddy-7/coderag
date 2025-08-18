@@ -22,7 +22,7 @@ class RepoCreateRequest(BaseModel):
 
 @router.post("/")
 def add_or_reindex_repo(request: RepoCreateRequest, db: Session = Depends(session.get_db)):
-    repo = crud.get_repo_by_url(db, request.project_path)
+    repo = crud.get_repo(db, request.project_path)
     try:
         if repo:
             logger.info(f"Reindexing repository: {request.project_path}")
@@ -31,7 +31,7 @@ def add_or_reindex_repo(request: RepoCreateRequest, db: Session = Depends(sessio
         else:
             logger.info(f"Adding and indexing new repository: {request.project_path}")
             indexer.index_project(request.project_path, request.branch)
-            new_repo = crud.get_repo_by_url(db, request.project_path)
+            new_repo = crud.get_repo(db, request.project_path)
             return {"message": "Repository added and indexed successfully", "repo_id": new_repo.id}
     except Exception as e:
         logger.error(f"Indexing failed for {request.project_path}: {str(e)}")

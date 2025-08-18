@@ -2,17 +2,16 @@
 """
 Query Routes:
 - Accept user queries
-- Route them to MasterAgent
+- Route them to CoderagAgent (Agentic-RAG loop: decide → retrieve → grade → rewrite? → answer)
 """
-
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.agents.coderag_agent import CoderagAgent
 from app.db import session
-from app.agents.tools import AgentTools
 from app.vectorstore.chroma import ChromaVectorStore
+from app.agents.tools import AgentTools
+from app.agents.coderag_agent import CoderagAgent
 
 router = APIRouter(prefix="/query", tags=["Queries"])
 
@@ -20,15 +19,17 @@ vectorstore = ChromaVectorStore()
 
 
 class QueryRequest(BaseModel):
-    repo_id: int
-    query: str
+    repo_id: int = Field(..., description="Internal repository ID")
+    query: str = Field(..., min_length=2, description="User question")
 
 
-@router.post("/")
+@router.post("/", summary="Process a query against a repository")
 def process_query(request: QueryRequest, db: Session = Depends(session.get_db)):
-    """Submit a query to a specific repository."""
+    """
+    Submit a query to a specific repository. Returns an Agentic-RAG structured result.
+    """
     tools = AgentTools(db=db, vectorstore=vectorstore)
-    master_agent = CoderagAgent(tools=tools)
+    agent = CoderagAgent(tools=tools)
 
-    answer = master_agent.handle_query(query=request.query, repo_id=request.repo_id)
-    return {"answer": answer}
+    result = agent.handle_query(query=request.query, repo_id=request.repo_id)
+    return result

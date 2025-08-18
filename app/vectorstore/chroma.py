@@ -2,13 +2,14 @@
 from langchain_community.vectorstores import Chroma
 from typing import List, Optional, Dict
 from .base import BaseVectorStore
+from ..config.settings import CHROMA_PERSIST_DIR
 from ..db.schemas import ChunkMetadata, ChunkDocument
 from ..ingestion.embedder import Embedder
 
 
 class ChromaVectorStore(BaseVectorStore):
     """ChromaDB implementation of vector store abstraction."""
-    def __init__(self, persist_directory: str = "./chroma_db"):
+    def __init__(self, persist_directory: str = CHROMA_PERSIST_DIR):
         self.embedding_model = Embedder()
         self.vectorstore = Chroma(
             persist_directory=persist_directory,
@@ -36,10 +37,10 @@ class ChromaVectorStore(BaseVectorStore):
         return ids
 
     def search(
-            self, query: str, top_k: int = 5, filters: Optional[Dict[str, str]] = None
+            self, query: str, top_k: int = 5, filter: Optional[Dict[str, str]] = None
     ):
         """Search for most relevant chunks based on query."""
-        return self.vectorstore.similarity_search(query, k=top_k, filter=filters)
+        return self.vectorstore.similarity_search(query, k=top_k, filter=filter)
 
     def delete(self, ids: List[str]) -> None:
         """Delete chunks from ChromaDB by IDs."""

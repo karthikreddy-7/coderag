@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Message } from '@/types/api';
 import { ProvenanceList } from './ProvenanceList';
+import ReactMarkdown from 'react-markdown';
 
 interface MessageBubbleProps {
   message: Message;
@@ -51,9 +52,15 @@ export function MessageBubble({ message, isLast }: MessageBubbleProps) {
               : 'bg-surface border border-border-light shadow-soft'
           }`}
         >
-          <div className="whitespace-pre-wrap text-sm leading-relaxed">
-            {message.content}
-          </div>
+          {isUser ? (
+            <div className="whitespace-pre-wrap text-sm leading-relaxed">
+              {message.content}
+            </div>
+          ) : (
+            <ReactMarkdown>
+              {message.content}
+            </ReactMarkdown>
+          )}
         </div>
 
         {/* Provenance (only for assistant messages) */}

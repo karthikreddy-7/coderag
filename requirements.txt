@@ -1,3 +1,7 @@
 sentence_transformers
 fastapi
 python-gitlab
+sqlalchemy
+tree-sitter==0.20.1
+langchain_community
+chromadb

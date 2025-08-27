@@ -5,12 +5,12 @@ import { Repository, Message, ChatHistory } from '@/types/api';
 interface AppState {
   // Repository state
   repositories: Repository[];
-  activeRepoId: string | null;
+  activeRepoId: number | null;
+  isLoading: boolean;
   
   // Chat state
   chatHistory: Record<string, Message[]>;
   currentMessages: Message[];
-  isLoading: boolean;
   
   // UI state
   sidebarCollapsed: boolean;
@@ -20,15 +20,15 @@ interface AppState {
   // Actions
   setRepositories: (repos: Repository[]) => void;
   addRepository: (repo: Repository) => void;
-  updateRepository: (id: string, updates: Partial<Repository>) => void;
-  setActiveRepo: (id: string | null) => void;
+  updateRepository: (id: number, updates: Partial<Repository>) => void;
+  setActiveRepo: (id: number | null) => void;
+  setLoading: (loading: boolean) => void;
   
   addMessage: (message: Message) => void;
   updateMessage: (id: string, updates: Partial<Message>) => void;
   clearMessages: () => void;
-  loadChatHistory: (repoId: string) => void;
+  loadChatHistory: (repoId: number) => void;
   
-  setLoading: (loading: boolean) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   setRightPanelCollapsed: (collapsed: boolean) => void;
   setSelectedProvenance: (provenance: any | null) => void;

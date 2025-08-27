@@ -55,11 +55,7 @@ export function MessageComposer({ disabled = false }: MessageComposerProps) {
     try {
       const response = await apiClient.query({
         repo_id: activeRepoId,
-        query: userMessage.content,
-        options: {
-          max_results: 5,
-          include_tools: true
-        }
+        query: userMessage.content
       });
 
       // Update assistant message with response

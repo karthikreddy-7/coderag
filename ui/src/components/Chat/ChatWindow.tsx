@@ -36,22 +36,6 @@ export function ChatWindow() {
     );
   }
 
-  if (activeRepo?.status !== 'ready' && !hasMessages) {
-    return (
-      <div className="h-full bg-background flex items-center justify-center">
-        <EmptyState 
-          title={activeRepo?.status === 'ingesting' ? 'Repository indexing...' : 'Repository not ready'}
-          description={
-            activeRepo?.status === 'ingesting' 
-              ? 'Your repository is being indexed. This may take a few minutes.'
-              : 'Please wait for the repository to be ready before asking questions.'
-          }
-          icon="loading"
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="h-full bg-background flex flex-col">
       {/* Messages Area */}
@@ -73,7 +57,7 @@ export function ChatWindow() {
 
       {/* Message Composer */}
       <div className="border-t border-border-light bg-surface">
-        <MessageComposer disabled={activeRepo?.status !== 'ready'} />
+        <MessageComposer />
       </div>
     </div>
   );

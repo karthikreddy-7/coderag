@@ -17,6 +17,7 @@ interface AddRepoModalProps {
 export function AddRepoModal({ open, onOpenChange }: AddRepoModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [repoUrl, setRepoUrl] = useState('');
+  const [branch, setBranch] = useState('');
   const [activeTab, setActiveTab] = useState('github');
   
   const { addRepository, setActiveRepo } = useAppStore();
@@ -39,7 +40,7 @@ export function AddRepoModal({ open, onOpenChange }: AddRepoModalProps) {
     try {
       const result = await apiClient.createRepository({
         url: repoUrl.trim(),
-        type: activeTab as 'github' | 'gitlab'
+        branch: branch.trim() || undefined
       });
       
       addRepository(result);
@@ -52,12 +53,8 @@ export function AddRepoModal({ open, onOpenChange }: AddRepoModalProps) {
       
       // Reset form and close modal
       setRepoUrl('');
+      setBranch('');
       onOpenChange(false);
-      
-      // Start polling for ingestion status if job_id is provided
-      if (result.ingest_job_id) {
-        pollIngestStatus(result.ingest_job_id, result.id);
-      }
       
     } catch (error) {
       console.error('Failed to add repository:', error);
@@ -71,36 +68,12 @@ export function AddRepoModal({ open, onOpenChange }: AddRepoModalProps) {
     }
   };
 
-  const pollIngestStatus = async (jobId: string, repoId: string) => {
-    try {
-      const status = await apiClient.getIngestStatus(jobId);
-      
-      if (status.status === 'done') {
-        toast({
-          title: "Repository indexed successfully",
-          description: `Processed ${status.processed_files} files with ${status.indexed_chunks} chunks`
-        });
-      } else if (status.status === 'error') {
-        toast({
-          title: "Indexing failed",
-          description: status.error_message || "Unknown error during indexing",
-          variant: "destructive"
-        });
-      } else {
-        // Continue polling
-        setTimeout(() => pollIngestStatus(jobId, repoId), 2000);
-      }
-    } catch (error) {
-      console.error('Failed to poll ingest status:', error);
-    }
-  };
-
   const getPlaceholder = () => {
     switch (activeTab) {
       case 'github':
-        return 'https://github.com/username/repository';
+        return 'e.g., https://github.com/facebook/react';
       case 'gitlab':
-        return 'https://gitlab.com/username/repository';
+        return 'e.g., https://gitlab.com/gitlab-org/gitlab';
       default:
         return 'Repository URL';
     }
@@ -108,14 +81,14 @@ export function AddRepoModal({ open, onOpenChange }: AddRepoModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md bg-surface border-border">
+      <DialogContent className="sm:max-w-lg bg-surface border-border">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Plus size={20} className="text-accent" />
             Add Repository
           </DialogTitle>
           <DialogDescription>
-            Connect a Git repository to start asking questions about your code
+            Connect a Git repository to start asking questions about your code.
           </DialogDescription>
         </DialogHeader>
 
@@ -129,19 +102,19 @@ export function AddRepoModal({ open, onOpenChange }: AddRepoModalProps) {
               <GitlabIcon size={16} />
               GitLab
             </TabsTrigger>
-            <TabsTrigger value="upload" className="flex items-center gap-2">
+            <TabsTrigger value="upload" className="flex items-center gap-2" disabled>
               <Upload size={16} />
               Upload
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="github" className="space-y-4">
+          <TabsContent value="github" className="pt-4">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="github-url">Repository URL</Label>
                 <Input
                   id="github-url"
-                  type="url"
+                  type="text"
                   placeholder={getPlaceholder()}
                   value={repoUrl}
                   onChange={(e) => setRepoUrl(e.target.value)}
@@ -149,8 +122,20 @@ export function AddRepoModal({ open, onOpenChange }: AddRepoModalProps) {
                   className="bg-background"
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="github-branch">Branch (optional)</Label>
+                <Input
+                  id="github-branch"
+                  type="text"
+                  placeholder="main"
+                  value={branch}
+                  onChange={(e) => setBranch(e.target.value)}
+                  disabled={isLoading}
+                  className="bg-background"
+                />
+              </div>
               
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2 pt-2">
                 <Button 
                   type="button" 
                   variant="outline" 
@@ -176,13 +161,13 @@ export function AddRepoModal({ open, onOpenChange }: AddRepoModalProps) {
             </form>
           </TabsContent>
 
-          <TabsContent value="gitlab" className="space-y-4">
+          <TabsContent value="gitlab" className="pt-4">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="gitlab-url">Repository URL</Label>
                 <Input
                   id="gitlab-url"
-                  type="url"
+                  type="text"
                   placeholder={getPlaceholder()}
                   value={repoUrl}
                   onChange={(e) => setRepoUrl(e.target.value)}
@@ -190,8 +175,20 @@ export function AddRepoModal({ open, onOpenChange }: AddRepoModalProps) {
                   className="bg-background"
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="gitlab-branch">Branch (optional)</Label>
+                <Input
+                  id="gitlab-branch"
+                  type="text"
+                  placeholder="main"
+                  value={branch}
+                  onChange={(e) => setBranch(e.target.value)}
+                  disabled={isLoading}
+                  className="bg-background"
+                />
+              </div>
               
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2 pt-2">
                 <Button 
                   type="button" 
                   variant="outline" 
@@ -217,11 +214,11 @@ export function AddRepoModal({ open, onOpenChange }: AddRepoModalProps) {
             </form>
           </TabsContent>
 
-          <TabsContent value="upload" className="space-y-4">
-            <div className="text-center py-8 border-2 border-dashed border-border rounded-lg bg-background">
-              <Upload size={32} className="text-foreground-muted mx-auto mb-2" />
-              <p className="text-sm text-foreground-muted">Upload functionality coming soon</p>
-              <p className="text-xs text-foreground-muted mt-1">
+          <TabsContent value="upload" className="pt-4">
+            <div className="text-center py-12 border-2 border-dashed border-border rounded-lg bg-background">
+              <Upload size={32} className="text-foreground-muted mx-auto mb-3" />
+              <h3 className="text-base font-medium text-foreground-muted">Upload functionality coming soon</h3>
+              <p className="text-sm text-foreground-muted mt-1">
                 Drag and drop a zip file or click to browse
               </p>
             </div>

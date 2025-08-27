@@ -1,29 +1,36 @@
 import { Menu, X, Code2, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/lib/store';
+import { useIsMobile } from '@/hooks/use-mobile';
 
-export function Header() {
+export function Header({ children }: { children?: React.ReactNode }) {
   const { 
     sidebarCollapsed, 
     setSidebarCollapsed,
     activeRepoId,
     repositories 
   } = useAppStore();
+  const isMobile = useIsMobile();
 
   const activeRepo = repositories.find(repo => repo.id === activeRepoId);
 
   return (
     <header className="h-14 border-b border-border-light bg-surface flex items-center px-4 shadow-soft">
       <div className="flex items-center gap-4">
-        {/* Sidebar Toggle */}
-        <Button 
-          variant="ghost" 
-          size="sm"
-          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          className="p-2 hover:bg-muted"
-        >
-          {sidebarCollapsed ? <Menu size={18} /> : <X size={18} />}
-        </Button>
+        {/* Mobile Drawer Trigger */}
+        {isMobile && children}
+
+        {/* Desktop Sidebar Toggle */}
+        {!isMobile && (
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="p-2 hover:bg-muted"
+          >
+            {sidebarCollapsed ? <Menu size={18} /> : <X size={18} />}
+          </Button>
+        )}
 
         {/* App Title */}
         <div className="flex items-center gap-3">
@@ -45,12 +52,7 @@ export function Header() {
       {/* Active Repository Indicator */}
       {activeRepo && (
         <div className="flex items-center gap-2 mr-4">
-          <div className={`w-2 h-2 rounded-full ${
-            activeRepo.status === 'ready' ? 'bg-success' :
-            activeRepo.status === 'ingesting' ? 'bg-warning animate-pulse-soft' :
-            activeRepo.status === 'error' ? 'bg-destructive' :
-            'bg-foreground-muted'
-          }`} />
+          <div className={`w-2 h-2 rounded-full bg-success`} />
           <span className="text-sm text-foreground-secondary font-medium">
             {activeRepo.name}
           </span>
